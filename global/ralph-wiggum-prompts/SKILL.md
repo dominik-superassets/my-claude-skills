@@ -13,7 +13,7 @@ Transform user plans, tasks, features, and requests into prompts optimized for t
 
 The loop repeatedly feeds Claude a prompt until completion:
 ```bash
-/ralph-loop:ralph-loop "<prompt>" --completion-promise "COMPLETE" --max-iterations 10
+/ralph-loop:ralph-loop "$(cat docs/ralph-prompts/task.md)" --completion-promise "COMPLETE" --max-iterations 10
 ```
 
 **Critical insight:** Success depends on prompt quality, not model capability. Prompts must be:
@@ -83,9 +83,9 @@ Every Ralph prompt MUST have these sections:
 - [ ] Linter clean
 
 ## Verification Commands
-```bash
+\`\`\`bash
 [exact commands to run]
-```
+\`\`\`
 
 When ALL criteria met AND ALL commands pass, output:
 <promise>COMPLETE</promise>
@@ -188,115 +188,54 @@ Prompt must work without conversation history:
 | No self-correction | Gets stuck on errors | Add fix-and-retry protocol |
 | Implicit completion | Unclear when done | Use `<promise>` tags |
 
-## Example Transformation
-
-**User Input:**
-> "I need a user registration feature with email validation"
-
-**Transformed Ralph Prompt:**
-
-```markdown
-# Feature: User Registration with Email Validation
-
-## Context
-Add user registration endpoint to REST API with proper email validation.
-
-## Requirements
-- [ ] POST /api/register endpoint
-- [ ] Email format validation
-- [ ] Duplicate email rejection
-- [ ] Password hashing
-- [ ] Success returns user object (no password)
-
-## Implementation Phases
-
-### Phase 1: Email Validation Utility
-**Goal:** Reusable email validator
-**Files:**
-- Create: src/utils/email.validator.ts
-- Create: tests/utils/email.validator.test.ts
-
-**Steps:**
-1. Write test: valid email returns true
-2. Write test: invalid email returns false
-3. Write test: empty string returns false
-4. Run: `npm test -- email.validator` - verify FAIL
-5. Implement isValidEmail function
-6. Run: `npm test -- email.validator` - verify PASS
-7. Commit: `git commit -am "feat: add email validation utility"`
-
-### Phase 2: Registration Endpoint
-**Goal:** Working POST /api/register
-**Files:**
-- Create: src/routes/register.ts
-- Create: tests/routes/register.test.ts
-- Modify: src/routes/index.ts
-
-**Steps:**
-1. Write test: valid registration returns 201
-2. Write test: invalid email returns 400
-3. Write test: duplicate email returns 409
-4. Run: `npm test -- register` - verify FAIL
-5. Implement register route with validation
-6. Add route to index.ts
-7. Run: `npm test -- register` - verify PASS
-8. Commit: `git commit -am "feat: add registration endpoint"`
-
-### Phase 3: Password Security
-**Goal:** Bcrypt password hashing
-**Files:**
-- Modify: src/routes/register.ts
-- Modify: tests/routes/register.test.ts
-
-**Steps:**
-1. Write test: stored password is hashed (not plaintext)
-2. Run: `npm test -- register` - verify FAIL
-3. Add bcrypt hashing before save
-4. Run: `npm test -- register` - verify PASS
-5. Commit: `git commit -am "feat: hash passwords on registration"`
-
-## Completion Criteria
-- [ ] All 3 phases implemented
-- [ ] All tests passing
-- [ ] Email validation works
-- [ ] Passwords are hashed
-- [ ] No linter errors
-
-## Verification Commands
-```bash
-npm test
-npm run lint
-npm run build
-```
-
-When ALL pass, output:
-<promise>COMPLETE</promise>
-
-## Self-Correction Protocol
-If any test fails:
-1. Read the full error message
-2. Identify if implementation bug or test bug
-3. Fix the actual issue
-4. Re-run: `npm test`
-5. Repeat until ALL pass
-6. Never skip failing tests
-
-After 10 failed attempts at same step:
-1. Document in docs/debug/registration.md
-2. List what was tried
-3. Output: <promise>BLOCKED</promise>
-```
-
 ## Output Format
 
-After transformation, provide:
+**CRITICAL: Always write to file.** Multi-line prompts fail with inline commands due to newline parsing.
 
-1. **The complete prompt** (ready to copy)
-2. **Recommended loop settings:**
-   ```bash
-   /ralph-loop:ralph-loop "..." --completion-promise "COMPLETE" --max-iterations 15
+### Step 1: Create Prompt Directory
+```bash
+mkdir -p docs/ralph-prompts
+```
+
+### Step 2: Write Prompt to File
+
+Use the Write tool to save the structured prompt to: `docs/ralph-prompts/<task-name>.md`
+
+Naming convention: kebab-case, descriptive (e.g., `fix-static-assets.md`, `add-user-auth.md`)
+
+### Step 3: Output Ready-to-Run Command
+
+After writing the file, output:
+
+```bash
+/ralph-loop:ralph-loop "$(cat docs/ralph-prompts/<task-name>.md)" --max-iterations <N> --completion-promise "<promise-text>"
+```
+
+### Step 4: Provide Summary
+
+- **Prompt file:** `docs/ralph-prompts/<task-name>.md`
+- **Max iterations:** (10-20 depending on complexity)
+- **Watch for:** task-specific failure points
+
+### Complete Example
+
+For a bug fix request, Claude should:
+
+1. **Create the prompt file** using Write tool:
    ```
-3. **What to watch for** (common failure points)
+   docs/ralph-prompts/fix-static-assets.md
+   ```
+   (Contains full structured prompt with phases, verification, self-correction)
+
+2. **Output the command:**
+   ```bash
+   /ralph-loop:ralph-loop "$(cat docs/ralph-prompts/fix-static-assets.md)" --max-iterations 15 --completion-promise "Choo choo! Ralph fixed it!"
+   ```
+
+3. **Summary:**
+   > Prompt saved to `docs/ralph-prompts/fix-static-assets.md`
+   > Recommended: 15 iterations (debugging task with deployment)
+   > Watch for: Docker rebuild needed after file changes
 
 ## When NOT Suitable for Ralph
 
