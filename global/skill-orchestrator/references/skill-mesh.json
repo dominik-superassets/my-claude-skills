@@ -1,0 +1,184 @@
+{
+  "$schema": "./skill-mesh.schema.json",
+  "version": "1.0.0",
+  "description": "DEPRECATED: This static registry is superseded by dynamic skill discovery. Skills are now discovered at runtime by scanning SKILL.md files. This file is kept for reference but is no longer the source of truth. See skill-discovery.md for the current approach.",
+  "_deprecated": true,
+  "_deprecation_note": "Use dynamic discovery instead. See references/skill-discovery.md",
+
+  "skills": {
+    "api-route-generator": {
+      "path": "global/api-route-generator/SKILL.md",
+      "triggers": ["api", "endpoint", "route", "backend", "REST", "CRUD", "handler"],
+      "file_patterns": ["**/api/**/*.ts", "**/route.ts"],
+      "outputs": ["typescript-api-route"],
+      "chains_to": ["linting-build-validator"],
+      "combines_with": ["component-generator"],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "component-generator": {
+      "path": "global/component-generator/SKILL.md",
+      "triggers": ["component", "ui", "react", "form", "table", "modal", "dialog", "button", "card"],
+      "file_patterns": ["**/*.tsx", "**/components/**/*"],
+      "outputs": ["react-component"],
+      "chains_to": ["design-system-auditor", "linting-build-validator"],
+      "combines_with": ["api-route-generator"],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "design-system-auditor": {
+      "path": "global/design-system-auditor/SKILL.md",
+      "triggers": ["audit", "design", "compliance", "ui-review", "styling", "dark-mode", "accessibility"],
+      "file_patterns": ["**/*.tsx", "**/*.css"],
+      "outputs": ["audit-report", "fixes"],
+      "chains_to": ["linting-build-validator"],
+      "combines_with": [],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "linting-build-validator": {
+      "path": "global/linting-build-validator/SKILL.md",
+      "triggers": ["lint", "build", "validate", "check", "pre-commit", "typescript", "eslint"],
+      "file_patterns": ["**/*.ts", "**/*.tsx"],
+      "outputs": ["validation-report", "fixes"],
+      "chains_to": [],
+      "combines_with": [],
+      "agent_type": "general-purpose",
+      "model_preference": "haiku"
+    },
+
+    "changelog-generator": {
+      "path": "global/changelog-generator/SKILL.md",
+      "triggers": ["changelog", "release", "notes", "version", "history"],
+      "file_patterns": ["CHANGELOG.md", "RELEASE.md"],
+      "outputs": ["changelog-entry"],
+      "chains_to": [],
+      "combines_with": [],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "secure-deployment-manager": {
+      "path": "global/secure-deployment-manager/SKILL.md",
+      "triggers": ["deploy", "amplify", "production", "staging", "aws", "debug-401", "debug-403"],
+      "file_patterns": ["amplify/**/*", ".env*"],
+      "outputs": ["deployment-status", "debug-report"],
+      "chains_to": [],
+      "combines_with": ["aws-infrastructure-manager"],
+      "agent_type": "general-purpose",
+      "model_preference": "opus"
+    },
+
+    "aws-infrastructure-manager": {
+      "path": "global/aws-infrastructure-manager/SKILL.md",
+      "triggers": ["aws", "infrastructure", "cloud", "s3", "lambda", "ec2", "iam", "cognito"],
+      "file_patterns": ["**/cdk/**/*", "**/infrastructure/**/*"],
+      "outputs": ["infrastructure-changes"],
+      "chains_to": ["aws-cdk-development"],
+      "combines_with": ["secure-deployment-manager"],
+      "agent_type": "general-purpose",
+      "model_preference": "opus"
+    },
+
+    "aws-cdk-development": {
+      "path": "global/aws-cdk-development/SKILL.md",
+      "triggers": ["cdk", "cloudformation", "stack", "construct", "iac"],
+      "file_patterns": ["**/cdk/**/*.ts", "**/lib/**/*-stack.ts"],
+      "outputs": ["cdk-stack", "cdk-construct"],
+      "chains_to": ["linting-build-validator"],
+      "combines_with": ["aws-infrastructure-manager"],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "aws-serverless-eda": {
+      "path": "global/aws-serverless-eda/SKILL.md",
+      "triggers": ["serverless", "lambda", "api-gateway", "dynamodb", "sqs", "sns", "eventbridge", "step-functions"],
+      "file_patterns": ["**/lambda/**/*", "**/functions/**/*"],
+      "outputs": ["serverless-function", "event-handler"],
+      "chains_to": ["aws-cdk-development"],
+      "combines_with": ["aws-infrastructure-manager"],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    },
+
+    "ralph-wiggum-prompts": {
+      "path": "global/ralph-wiggum-prompts/SKILL.md",
+      "triggers": ["ralph", "loop", "autonomous", "iterate", "re-prompt"],
+      "file_patterns": [],
+      "outputs": ["structured-prompt"],
+      "chains_to": [],
+      "combines_with": [],
+      "agent_type": "general-purpose",
+      "model_preference": "sonnet"
+    }
+  },
+
+  "workflows": {
+    "full-feature": {
+      "description": "Complete feature with backend and frontend",
+      "skills": ["api-route-generator", "component-generator", "linting-build-validator"],
+      "execution": "parallel-then-validate"
+    },
+
+    "deploy-ready": {
+      "description": "Validate and deploy code",
+      "skills": ["linting-build-validator", "secure-deployment-manager"],
+      "execution": "sequential"
+    },
+
+    "ui-polish": {
+      "description": "Audit and fix UI components",
+      "skills": ["design-system-auditor", "component-generator", "linting-build-validator"],
+      "execution": "sequential"
+    },
+
+    "aws-setup": {
+      "description": "Full AWS infrastructure setup",
+      "skills": ["aws-infrastructure-manager", "aws-cdk-development", "aws-serverless-eda"],
+      "execution": "sequential"
+    }
+  },
+
+  "output_contract": {
+    "description": "Standard output structure for skill-augmented sub-agents",
+    "schema": {
+      "status": {
+        "type": "enum",
+        "values": ["complete", "needs_refinement", "blocked"],
+        "required": true
+      },
+      "result": {
+        "type": "string",
+        "description": "Summary of what was accomplished",
+        "required": true
+      },
+      "artifacts": {
+        "type": "array",
+        "items": "string",
+        "description": "List of files created or modified",
+        "required": false
+      },
+      "issues": {
+        "type": "array",
+        "items": "string",
+        "description": "Problems encountered",
+        "required": false
+      },
+      "request_skills": {
+        "type": "array",
+        "items": "string",
+        "description": "Additional skills needed for refinement",
+        "required": false
+      },
+      "spawn_requests": {
+        "type": "array",
+        "description": "Sub-tasks to delegate to other agents",
+        "required": false
+      }
+    }
+  }
+}

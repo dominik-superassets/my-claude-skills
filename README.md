@@ -15,15 +15,28 @@ my-claude-skills/
 
 ## Quick Setup
 
-To make global skills available to all Claude Code sessions:
+Skills must be installed to your Claude Code skills directory to be available.
 
+**Skills directory location:**
 ```bash
-# Skills are installed at:
-~/.claude/skills/
-
-# Current skills installed:
-C:\Users\Dominik\.claude\skills\
+~/.claude/skills/          # Linux/Mac
+C:\Users\<you>\.claude\skills\   # Windows
 ```
+
+**Easiest installation method:** Ask Claude Code to install skills:
+
+```
+"Install the skill-orchestrator skill from this repo to my Claude skills directory"
+```
+
+Claude Code will detect your skills directory and copy the skill folder.
+
+**Manual installation:**
+```bash
+cp -r global/<skill-name> ~/.claude/skills/
+```
+
+**Verify installation:** After installing, the skill should appear when you type `/` in Claude Code.
 
 ---
 
@@ -44,6 +57,118 @@ These are your custom skills available in all Claude Code sessions.
 | **linting-build-validator** | Pre-commit and pre-deployment validation for linting and TypeScript |
 | **ralph-wiggum-prompts** | Transform plans/tasks into Ralph Wiggum loop-ready prompts |
 | **secure-deployment-manager** | Deploy to AWS Amplify with security-first debugging |
+| **skill-orchestrator** | **META-SKILL** - Enables skill-augmented sub-agent spawning for scale autonomy |
+
+---
+
+## Skill Orchestrator (Scale Autonomy)
+
+The `skill-orchestrator` is a meta-skill that enables **recursive, skill-aware agent spawning** with dynamic discovery.
+
+### Hybrid Approach: Native + Orchestrator
+
+Claude Code supports **two complementary** patterns for skill-augmented agents:
+
+| Pattern | When to Use |
+|---------|-------------|
+| **Native `skills:` frontmatter** | Fixed specialist agents (always same skills) |
+| **skill-orchestrator** | Dynamic tasks, workflows, auto-matching |
+
+**Use both together** for maximum flexibility.
+
+### Native Custom Agents (Static Binding)
+
+For roles that always need the same expertise:
+
+```yaml
+# .claude/agents/api-specialist.md
+---
+name: api-specialist
+description: API development with conventions loaded
+tools: [Read, Write, Edit, Bash, Glob, Grep]
+skills: [api-route-generator, linting-build-validator]
+---
+You are an API specialist. Create endpoints following loaded skill patterns.
+```
+
+Invoke with: `Task tool → subagent_type: api-specialist`
+
+### skill-orchestrator (Dynamic Matching)
+
+For tasks where skills should be auto-discovered:
+
+```
+User: "Build a preferences feature"
+    ↓
+Orchestrator scans for SKILL.md files
+    ↓
+Matches: api-route-generator + component-generator
+    ↓
+Spawns parallel agents with skill knowledge injected
+    ↓
+Chains to linting-build-validator automatically
+    ↓
+Reports complete feature with validated artifacts
+```
+
+### What skill-orchestrator Provides (Beyond Native)
+
+| Capability | Native | Orchestrator |
+|------------|--------|--------------|
+| Skill content → subagent | ✅ | ✅ |
+| Works with standard Task tool | ❌ | ✅ |
+| Dynamic skill discovery | ❌ | ✅ |
+| Auto-matching from task | ❌ | ✅ |
+| Workflow pipelines (YAML) | ❌ | ✅ |
+| Variable passing | ❌ | ✅ |
+| Refinement loops | ❌ | ✅ |
+
+### Key Files
+
+```
+global/skill-orchestrator/
+├── SKILL.md                           # Core orchestration instructions
+├── workflows/                         # Declarative YAML pipelines
+│   ├── full-feature.yaml              # End-to-end feature creation
+│   ├── validate-and-deploy.yaml       # Pre-flight + deployment
+│   └── quick-validate.yaml            # Fast pre-commit checks
+└── references/
+    ├── skill-discovery.md             # Dynamic discovery algorithm
+    ├── workflow-schema.md             # Workflow YAML specification
+    ├── workflow-executor.md           # Execution engine details
+    └── skill-mesh.json                # Legacy registry (deprecated by discovery)
+```
+
+### Workflow Example
+
+```yaml
+# workflows/full-feature.yaml
+name: Full Feature Pipeline
+trigger: "build feature *"
+stages:
+  - name: Backend
+    skills: [api-route-generator]
+    parallel: true
+  - name: Frontend
+    skills: [component-generator]
+    parallel: true
+  - name: Validate
+    depends_on: [Backend, Frontend]
+    skills: [linting-build-validator]
+```
+
+### Output Contract
+
+All skill-augmented agents return structured JSON:
+```json
+{
+  "status": "complete | needs_refinement | blocked",
+  "result": "what was accomplished",
+  "artifacts": ["files created/modified"],
+  "request_skills": ["additional skills needed"],
+  "spawn_requests": [{ "task": "...", "suggested_skills": [...] }]
+}
+```
 
 ---
 

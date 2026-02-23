@@ -1,0 +1,102 @@
+# Validate and Deploy Pipeline
+# Ensures code quality before deploying to target environment
+#
+# Triggers:
+#   - "deploy to staging"
+#   - "deploy to production"
+#   - "ship it"
+
+name: Validate and Deploy
+description: Pre-deployment validation followed by secure deployment
+version: "1.0.0"
+trigger:
+  - "deploy to *"
+  - "ship to *"
+  - "release to *"
+  - "ship it"
+  - "deploy"
+
+settings:
+  max_retries: 3
+  fail_fast: true
+  notify_on_complete: true
+
+stages:
+  # ============================================
+  # PHASE 1: PRE-FLIGHT CHECKS
+  # ============================================
+
+  - name: LintCheck
+    skills: [linting-build-validator]
+    task: |
+      Run comprehensive linting and build validation:
+      - Check for unused imports/variables
+      - Verify TypeScript compilation
+      - Ensure no console.logs in production code
+      - Validate all promises are handled
+    retry: 1
+    on_failure: stop
+
+  - name: BuildTest
+    skills: [linting-build-validator]
+    depends_on: [LintCheck]
+    task: |
+      Test production build:
+      - Run: pnpm build
+      - Verify build completes without errors
+      - Check for build warnings
+    retry: 2
+    on_failure: stop
+
+  # ============================================
+  # PHASE 2: DEPLOYMENT
+  # ============================================
+
+  - name: Deploy
+    skills: [secure-deployment-manager]
+    depends_on: [BuildTest]
+    condition: "$BuildTest.status == 'complete'"
+    task: |
+      Deploy to {$target}:
+      - Environment: {$target}
+      - Verify deployment completes
+      - Check for 401/403 errors
+      - Validate auth flow
+    context: |
+      Using AWS Amplify
+      Monitor deployment job status
+      Check CloudWatch for errors
+
+  # ============================================
+  # PHASE 3: VERIFICATION
+  # ============================================
+
+  - name: PostDeployCheck
+    skills: [secure-deployment-manager]
+    depends_on: [Deploy]
+    condition: "$Deploy.status == 'complete'"
+    task: |
+      Verify deployment health:
+      - Check application responds
+      - Verify authentication works
+      - Test critical endpoints
+    on_failure: continue
+
+  - name: DeployReport
+    depends_on: [Deploy, PostDeployCheck]
+    task: |
+      Deployment summary for {$target}:
+
+      ## Pre-flight
+      - Lint: {$LintCheck.result}
+      - Build: {$BuildTest.result}
+
+      ## Deployment
+      - Status: {$Deploy.result}
+      - Health: {$PostDeployCheck.result}
+
+      ## Next Steps
+      {if $PostDeployCheck.status != 'complete'}
+      - Investigate health check failures
+      - Consider rollback if critical
+      {/if}

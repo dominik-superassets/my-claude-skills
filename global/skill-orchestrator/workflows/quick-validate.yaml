@@ -1,0 +1,51 @@
+# Quick Validation Pipeline
+# Fast pre-commit checks
+#
+# Triggers:
+#   - "check my code"
+#   - "ready to commit?"
+#   - "pre-commit check"
+
+name: Quick Validate
+description: Fast linting and design check before committing
+version: "1.0.0"
+trigger:
+  - "check my code"
+  - "check code"
+  - "ready to commit"
+  - "pre-commit"
+  - "validate code"
+  - "lint check"
+
+settings:
+  max_retries: 1
+  fail_fast: false
+  notify_on_complete: true
+
+stages:
+  - name: QuickLint
+    skills: [linting-build-validator]
+    model: haiku  # Fast model for quick checks
+    task: |
+      Quick lint check on recently modified files:
+      - Check git status for modified files
+      - Scan for unused imports
+      - Check for console.logs
+      - Verify no TypeScript errors
+    retry: 1
+
+  - name: QuickReport
+    depends_on: [QuickLint]
+    task: |
+      Pre-commit status:
+
+      {if $QuickLint.status == 'complete' AND $QuickLint.issues.length == 0}
+      ✅ READY TO COMMIT
+      No issues found. Safe to commit.
+      {else}
+      ❌ NEEDS FIXES
+      Issues found:
+      {$QuickLint.issues}
+
+      Fix these before committing.
+      {/if}

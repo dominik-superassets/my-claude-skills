@@ -1,0 +1,130 @@
+# Full Feature Pipeline
+# Creates complete feature with backend API, frontend UI, and full validation
+#
+# Triggers:
+#   - "build feature notifications"
+#   - "create user settings feature"
+#   - "implement dashboard widgets"
+
+name: Full Feature Pipeline
+description: End-to-end feature creation with API, UI, validation, and design audit
+version: "1.0.0"
+trigger:
+  - "build feature *"
+  - "create * feature"
+  - "build * feature"
+
+settings:
+  max_retries: 2
+  fail_fast: false
+  notify_on_complete: true
+
+stages:
+  # ============================================
+  # PHASE 1: CREATION (Parallel)
+  # ============================================
+
+  - name: Backend
+    skills: [api-route-generator]
+    agent: general-purpose
+    model: sonnet
+    parallel: true
+    task: |
+      Create API endpoint for {$feature}:
+      - RESTful routes (GET, POST, PATCH, DELETE as needed)
+      - Authentication with withAuth
+      - Permission checks with checkRoutePermission
+      - Proper error handling and logging
+    context: |
+      Project uses Next.js 15 App Router
+      Follow patterns from CLAUDE.md
+      Use shared Prisma client
+
+  - name: Frontend
+    skills: [component-generator]
+    agent: general-purpose
+    model: sonnet
+    parallel: true
+    task: |
+      Create UI component(s) for {$feature}:
+      - TypeScript with explicit interfaces
+      - Tailwind CSS with dark mode variants
+      - Hover states and transitions
+      - Responsive design
+    context: |
+      Project uses React 19 with Next.js 15
+      Follow SuperAssets design system
+      Include loading and error states
+
+  # ============================================
+  # PHASE 2: VALIDATION (Sequential)
+  # ============================================
+
+  - name: LintValidation
+    skills: [linting-build-validator]
+    depends_on: [Backend, Frontend]
+    retry: 2
+    task: |
+      Validate all created files:
+      Files: {$Backend.artifacts}, {$Frontend.artifacts}
+
+      Check for:
+      - Unused imports
+      - Unused variables
+      - TypeScript errors
+      - console.log statements
+      - Floating promises
+
+  - name: DesignAudit
+    skills: [design-system-auditor]
+    depends_on: [LintValidation]
+    condition: "$Frontend.status == 'complete'"
+    task: |
+      Audit UI component for design compliance:
+      Files: {$Frontend.artifacts}
+
+      Check for:
+      - Dark mode coverage (every color needs dark: variant)
+      - Brand color usage
+      - Hover/transition states
+      - Spacing consistency
+      - No browser dialogs
+
+  # ============================================
+  # PHASE 3: REFINEMENT (Conditional)
+  # ============================================
+
+  - name: Refinement
+    skills: [component-generator, linting-build-validator, design-system-auditor]
+    condition: |
+      $LintValidation.status == 'needs_refinement' OR
+      $DesignAudit.status == 'needs_refinement'
+    retry: 2
+    task: |
+      Fix identified issues:
+
+      Lint issues: {$LintValidation.issues}
+      Design issues: {$DesignAudit.issues}
+
+      Apply fixes and re-validate.
+    on_failure: continue
+
+  # ============================================
+  # PHASE 4: SYNTHESIS
+  # ============================================
+
+  - name: FinalReport
+    depends_on: [LintValidation, DesignAudit]
+    task: |
+      Synthesize final report for {$feature} feature:
+
+      ## Artifacts Created
+      - Backend: {$Backend.artifacts}
+      - Frontend: {$Frontend.artifacts}
+
+      ## Validation Results
+      - Lint: {$LintValidation.result}
+      - Design: {$DesignAudit.result}
+
+      ## Status
+      Overall: {$overall_status}
